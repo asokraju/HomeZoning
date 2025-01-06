@@ -194,57 +194,55 @@ def load_layout_from_yaml(yaml_file: str) -> Layout:
 
     # Create structures
     structures = []
-    for structure_data in data.get("structures", []):
-        struct_type = structure_data.get("type", "polygon").lower()
-        if struct_type == "polygon":
-            structure = Structure(
-                name=structure_data["name"],
-                points=[tuple(point) for point in structure_data["points"]],
-                edgecolor=structure_data.get("edgecolor", "red"),
-                linewidth=structure_data.get("linewidth", 1.5)
-            )
-            structures.append(structure)
-        elif struct_type == "shaped":
-            shape = structure_data["shape"].lower()
-            alignment = structure_data.get("alignment", "center")
-            dimensions = structure_data["dimensions"]
-            if shape in ["rectangle", "square"]:
-                dims = (dimensions["length"], dimensions["breadth"]) if shape == "rectangle" else dimensions.get("side", 10)
-            
-            for pos in structure_data.get("positions", []):
-                position = (pos["x"], pos["y"])
-                if shape in ["rectangle", "square"]:
-                    shaped_structure = ShapedStructure(
-                        name=structure_data["name"],
-                        shape=shape,
-                        position=position,
-                        dimensions=dims,
-                        alignment=alignment,
-                        edgecolor=structure_data.get("edgecolor", "blue"),
-                        linewidth=structure_data.get("linewidth", 1.5)
-                    )
-                    structures.append(shaped_structure)
-                elif shape == "circle":
-                    radius = dimensions["radius"]
-                    shaped_structure = ShapedStructure(
-                        name=structure_data["name"],
-                        shape=shape,
-                        position=position,
-                        dimensions=radius,
-                        edgecolor=structure_data.get("edgecolor", "blue"),
-                        linewidth=structure_data.get("linewidth", 1.5)
-                    )
-                    structures.append(shaped_structure)
-                else:
-                    raise ValueError(f"Unsupported shaped structure: {shape}")
-        else:
-            raise ValueError(f"Unsupported structure type: {struct_type}")
+    # Handle polygons
+    for polygon in data.get("structures", {}).get("polygons", []):
+        structure = Structure(
+            name=polygon["name"],
+            points=[tuple(point) for point in polygon["points"]],
+            edgecolor=polygon.get("edgecolor", "red"),
+            linewidth=polygon.get("linewidth", 1.5)
+        )
+        structures.append(structure)
+    
+    # Handle shaped structures
+    for shaped in data.get("structures", {}).get("shaped_structures", []):
+        shape = shaped["shape"].lower()
+        alignment = shaped.get("alignment", "center")
+        dimensions = shaped["dimensions"]
+        if shape in ["rectangle", "square"]:
+            dims = (dimensions["length"], dimensions["breadth"]) if shape == "rectangle" else dimensions.get("side", 10)
+        elif shape == "circle":
+            dims = dimensions["radius"]
+        # Add more shapes as needed
+
+        for pos in shaped.get("positions", []):
+            position = (pos["x"], pos["y"])
+            if shape in ["rectangle", "square", "triangle", "ellipse"]:
+                shaped_structure = ShapedStructure(
+                    name=shaped["name"],
+                    shape=shape,
+                    position=position,
+                    dimensions=dims,
+                    alignment=alignment,
+                    edgecolor=shaped.get("edgecolor", "blue"),
+                    linewidth=shaped.get("linewidth", 1.5)
+                )
+                structures.append(shaped_structure)
+            elif shape == "circle":
+                shaped_structure = ShapedStructure(
+                    name=shaped["name"],
+                    shape=shape,
+                    position=position,
+                    dimensions=dims,
+                    edgecolor=shaped.get("edgecolor", "blue"),
+                    linewidth=shaped.get("linewidth", 1.5)
+                )
+                structures.append(shaped_structure)
+            else:
+                raise ValueError(f"Unsupported shaped structure: {shape}")
 
     return Layout(plot=plot, structures=structures)
 
-
-    # Return layout
-    return Layout(plot=plot, structures=structures)
 
 
 # Load layout from YAML and draw
