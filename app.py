@@ -206,39 +206,42 @@ def load_layout_from_yaml(yaml_file: str) -> Layout:
             structures.append(structure)
         elif struct_type == "shaped":
             shape = structure_data["shape"].lower()
-            position = (structure_data["position"]["x"], structure_data["position"]["y"])
+            alignment = structure_data.get("alignment", "center")
             dimensions = structure_data["dimensions"]
             if shape in ["rectangle", "square"]:
-                if shape == "rectangle":
-                    dims = (dimensions["length"], dimensions["breadth"])
-                elif shape == "square":
-                    dims = dimensions["side"] if "side" in dimensions else dimensions.get("length", 10)  # Default side length
-                alignment = structure_data.get("alignment", "center")
-                shaped_structure = ShapedStructure(
-                    name=structure_data["name"],
-                    shape=shape,
-                    position=position,
-                    dimensions=dims,
-                    alignment=alignment,
-                    edgecolor=structure_data.get("edgecolor", "blue"),
-                    linewidth=structure_data.get("linewidth", 1.5)
-                )
-                structures.append(shaped_structure)
-            elif shape == "circle":
-                radius = dimensions["radius"]
-                shaped_structure = ShapedStructure(
-                    name=structure_data["name"],
-                    shape=shape,
-                    position=position,
-                    dimensions=radius,
-                    edgecolor=structure_data.get("edgecolor", "blue"),
-                    linewidth=structure_data.get("linewidth", 1.5)
-                )
-                structures.append(shaped_structure)
-            else:
-                raise ValueError(f"Unsupported shaped structure: {shape}")
+                dims = (dimensions["length"], dimensions["breadth"]) if shape == "rectangle" else dimensions.get("side", 10)
+            
+            for pos in structure_data.get("positions", []):
+                position = (pos["x"], pos["y"])
+                if shape in ["rectangle", "square"]:
+                    shaped_structure = ShapedStructure(
+                        name=structure_data["name"],
+                        shape=shape,
+                        position=position,
+                        dimensions=dims,
+                        alignment=alignment,
+                        edgecolor=structure_data.get("edgecolor", "blue"),
+                        linewidth=structure_data.get("linewidth", 1.5)
+                    )
+                    structures.append(shaped_structure)
+                elif shape == "circle":
+                    radius = dimensions["radius"]
+                    shaped_structure = ShapedStructure(
+                        name=structure_data["name"],
+                        shape=shape,
+                        position=position,
+                        dimensions=radius,
+                        edgecolor=structure_data.get("edgecolor", "blue"),
+                        linewidth=structure_data.get("linewidth", 1.5)
+                    )
+                    structures.append(shaped_structure)
+                else:
+                    raise ValueError(f"Unsupported shaped structure: {shape}")
         else:
             raise ValueError(f"Unsupported structure type: {struct_type}")
+
+    return Layout(plot=plot, structures=structures)
+
 
     # Return layout
     return Layout(plot=plot, structures=structures)
