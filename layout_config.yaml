@@ -2,6 +2,7 @@ plot:
   width: 125
   length: 60
   extra_space: 5
+
 structures:
   polygons:
     - name: House
@@ -16,6 +17,7 @@ structures:
       edgecolor: red
       linewidth: 1.5
       zorder: 3
+
     - name: Patio
       points:
         - [32.5, 63]
@@ -25,6 +27,7 @@ structures:
       edgecolor: purple
       linewidth: 1.5
       zorder: 2
+
     - name: Driveway
       points:
         - [12, 0]
@@ -37,6 +40,7 @@ structures:
       edgecolor: purple
       linewidth: 1.5
       zorder: 2
+
     - name: Garden Bed Model 2
       points:
         - [46, 73.5]
@@ -47,6 +51,9 @@ structures:
       linewidth: 1.5
       zorder: 2
       needs_irrigation: True
+      main_line_alignment: "bottom"
+      number_of_drip_lines: 3
+
     - name: Tulip Bed
       points:
         - [1, 115]
@@ -58,6 +65,9 @@ structures:
       linewidth: 1.5
       zorder: 2
       needs_irrigation: True
+      main_line_alignment: "right"
+      number_of_drip_lines: 4
+
     - name: Porch Plants
       points:
         - [37.5, 22]
@@ -69,34 +79,32 @@ structures:
       linewidth: 1.5
       zorder: 2
       needs_irrigation: True
+      number_of_drip_lines: 1
+      main_line_alignment: "right"
+
   shaped_structures:
     - name: Garden Bed Model 1
       shape: rectangle
       alignment: center
-      positions:
-        - {x: 10, y: 105}
-        - {x: 22, y: 105}
-        - {x: 34, y: 105}
-        - {x: 46, y: 105}
       dimensions:
         length: 8
         breadth: 4
       edgecolor: green
       linewidth: 1.5
       zorder: 4
+      # Default irrigation for these four positions
       needs_irrigation: True
+      main_line_alignment: "optimal"
+      number_of_drip_lines: 2
+      positions:
+        - { x: 10, y: 105, name: "Bed A" , main_line_alignment: "right"}
+        - { x: 22, y: 105, name: "Bed B", main_line_alignment: "left" }  # override drip lines
+        - { x: 34, y: 105, name: "Bed C" , main_line_alignment: "right"}
+        - { x: 46, y: 105, name: "Bed D", main_line_alignment: "left" }
+
     - name: Garden Bed Model 2
       shape: rectangle
       alignment: center
-      positions:
-        - {x: 6, y: 112.5}
-        - {x: 12, y: 112.5}
-        - {x: 18, y: 112.5}
-        - {x: 24, y: 112.5}
-        - {x: 30, y: 112.5}
-        - {x: 36, y: 112.5}
-        - {x: 42, y: 112.5}
-        - {x: 48, y: 112.5}
       dimensions:
         length: 6
         breadth: 3
@@ -104,12 +112,21 @@ structures:
       linewidth: 1.5
       zorder: 4
       needs_irrigation: True
+      main_line_alignment: "optimal"
+      number_of_drip_lines: 2
+      positions:
+        - { x: 6, y: 112.5, name: "Bed E" , main_line_alignment: "right"}
+        - { x: 12, y: 112.5, name: "Bed F" , main_line_alignment: "left"}
+        - { x: 18, y: 112.5, name: "Bed G", main_line_alignment: "right" }
+        - { x: 24, y: 112.5, name: "Bed H" , main_line_alignment: "left" }
+        - { x: 30, y: 112.5, name: "Bed I" , main_line_alignment: "right"}
+        - { x: 36, y: 112.5, name: "Bed J" , main_line_alignment: "left"}
+        - { x: 42, y: 112.5, name: "Bed K" , main_line_alignment: "right"}
+        - { x: 48, y: 112.5, name: "Bed L", main_line_alignment: "left" }  # disable irrigation
+
     - name: Garden Bed Model 3
       shape: rectangle
       alignment: center
-      positions:
-        - {x: 39, y: 116.5}
-        - {x: 39, y: 121.5}
       dimensions:
         length: 24
         breadth: 3
@@ -117,17 +134,24 @@ structures:
       linewidth: 1.5
       zorder: 4
       needs_irrigation: True
+      main_line_alignment: "optimal"
+      number_of_drip_lines: 1
+      positions:
+        - { x: 39, y: 116.5, name: "Bed M" , main_line_alignment: "left"}
+        - { x: 39, y: 121.5, name: "Bed N", main_line_alignment: "left" }
+
     - name: Tree
       shape: circle
       alignment: center
-      positions:
-        - {x: 45, y: 7.5}
       dimensions:
         radius: 2.5
       edgecolor: green
       linewidth: 1.5
       zorder: 4
       needs_irrigation: True
+      positions:
+        - { x: 45, y: 7.5, name: "Tree 1", number_of_drip_lines: 1}
+
 irrigation:
   lines:
     - name: Main Line A
@@ -142,7 +166,7 @@ irrigation:
   fittings:
     - name: Elbow near Bed #1
       fitting_type: elbow
-      position: [15, 10]   # The 90° turn
+      position: [15, 10]
       color: lime
 
     - name: 3-Way Split near Bed #2
