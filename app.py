@@ -15,6 +15,7 @@ class Plot:
     width: int
     length: int
     extra_space: int
+    figure_size: float = 11.0  # New field: controls figure height in inches
 
     @property
     def new_width(self):
@@ -229,6 +230,10 @@ class Layout:
                          y_min: float, y_max: float
                          ) -> (Optional[IrrigationLine], List[IrrigationFitting]):
 
+        """
+        Creates a single main line for bed `s`, placing the inlet valve ~0.25 ft outside the bed
+        on the chosen side. The opposite end remains just inside the bed boundary.
+        """
         bed_name = s.name
         w = x_max - x_min
         h = y_max - y_min
@@ -245,95 +250,114 @@ class Layout:
         if alignment == "none":
             return None, []
 
-        # Step 2: Handle user-specified main_line_inlet & main_line_end.
-        # main_line_inlet can be a tuple (x,y) or a string in [top,bottom,left,right].
-        # main_line_end can be a tuple or None. (We only consider it if user explicitly set it.)
         inlet_spec = s.main_line_inlet
         end_spec   = s.main_line_end
 
-        # ========== VALIDATIONS ==========
-        # (a) If user sets main_line_end but NOT main_line_inlet, that might be partial => error
+        # If user sets main_line_end but not main_line_inlet => partial => error
         if end_spec and not inlet_spec:
             raise ValueError(
                 f"{bed_name}: main_line_end is specified but main_line_inlet is missing. "
                 "Please specify both or neither."
             )
 
-        # (b) If user provided both inlet & end as coordinates => old logic
-        if isinstance(inlet_spec, tuple) and isinstance(end_spec, tuple):
-            main_line_coords = [inlet_spec, end_spec]
-            # We'll skip the side logic in that case
-        else:
-            # We'll generate coordinates automatically
-            inset = 0.5
+        # Define insets
+        inside_inset  = 0.5   # inside the bed boundary in feet
+        outside_offset = 1 # 3 inches outside the bed
 
-            # 2.1 Determine the main line based on alignment
+        # Determine default inlet if not specified
+        if inlet_spec is None:
+            if alignment in ["top", "bottom"]:
+                inlet_spec = "left"
+            elif alignment in ["left", "right"]:
+                inlet_spec = "bottom"
+            else:
+                inlet_spec = "left"  # Default to 'left' if alignment is somehow different
+
+        # Generate main_line_coords based on alignment
+        if isinstance(inlet_spec, tuple) and isinstance(end_spec, tuple):
+            # Both inlet and end are coordinates
+            main_line_coords = [inlet_spec, end_spec]
+        else:
+            # Auto-generate based on alignment
             if alignment in ["top", "bottom"]:
                 # Horizontal line
-                y_line = y_max - inset if alignment == "top" else y_min + inset
-                left_pt  = (x_min + inset, y_line)
-                right_pt = (x_max - inset, y_line)
+                y_line = (y_max - inside_inset) if alignment == "top" else (y_min + inside_inset)
+                left_pt  = (x_min + inside_inset, y_line)
+                right_pt = (x_max - inside_inset, y_line)
                 main_line_coords = [left_pt, right_pt]
 
             elif alignment in ["left", "right"]:
                 # Vertical line
-                x_line = x_min + inset if alignment == "left" else x_max - inset
-                bottom_pt = (x_line, y_min + inset)
-                top_pt    = (x_line, y_max - inset)
+                x_line = (x_min + inside_inset) if alignment == "left" else (x_max - inside_inset)
+                bottom_pt = (x_line, y_min + inside_inset)
+                top_pt    = (x_line, y_max - inside_inset)
                 main_line_coords = [bottom_pt, top_pt]
+
             else:
-                # unknown alignment => skip
+                # Unknown alignment
                 return None, []
 
-            # 2.2 Resolve the inlet side if given as "top"/"bottom"/"left"/"right"
+            # Handle inlet_spec if it's a string
             if isinstance(inlet_spec, str):
                 inlet_side = inlet_spec.lower()
-                # If alignment is horizontal => we expect inlet_side in ["left", "right"]
-                # If alignment is vertical => we expect inlet_side in ["top", "bottom"]
+                # For horizontal alignment, expect 'left' or 'right'
                 if alignment in ["top", "bottom"]:
                     if inlet_side not in ["left", "right"]:
                         raise ValueError(
                             f"{bed_name}: With alignment '{alignment}', "
                             f"inlet must be 'left' or 'right', not '{inlet_side}'."
                         )
-                    # Place the inlet at left or right end
-                    if inlet_side == "left":
-                        # inlet at main_line_coords[0]
-                        pass
-                    else:
-                        # inlet_side == "right"
-                        # swap coords so the inlet is the start
+                    # If inlet_side is 'right', reverse the coords so inlet is first
+                    if inlet_side == "right":
                         main_line_coords.reverse()
-
+                # For vertical alignment, expect 'top' or 'bottom'
                 elif alignment in ["left", "right"]:
                     if inlet_side not in ["top", "bottom"]:
                         raise ValueError(
                             f"{bed_name}: With alignment '{alignment}', "
                             f"inlet must be 'top' or 'bottom', not '{inlet_side}'."
                         )
-                    # Place the inlet at top or bottom end
-                    if inlet_side == "bottom":
-                        pass
-                    else:
-                        # inlet_side == "top"
+                    # If inlet_side is 'top', reverse the coords so inlet is first
+                    if inlet_side == "top":
                         main_line_coords.reverse()
-                else:
-                    # alignment "none" or invalid
-                    return None, []
 
-            # 2.3 If user gave a coordinate for inlet_spec, override main_line_coords[0]
+            # Override coordinates if inlet_spec or end_spec are tuples
             if isinstance(inlet_spec, tuple):
                 main_line_coords[0] = inlet_spec
 
-            # 2.4 If user gave a coordinate for end_spec, override main_line_coords[-1]
             if isinstance(end_spec, tuple):
                 main_line_coords[-1] = end_spec
 
-        # if we ended up with fewer than 2 coords, skip
+        # If we end up with fewer than 2 coords, skip
         if len(main_line_coords) < 2:
             return None, []
 
-        # Step 3: Create the main line
+        # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        # SHIFT THE INLET 0.25 FT OUTSIDE THE BED
+        # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        # The inlet is main_line_coords[0].
+        # We'll shift it outward depending on alignment & side.
+        start_x, start_y = main_line_coords[0]
+        end_x,   end_y   = main_line_coords[-1]
+
+        if isinstance(inlet_spec, str):
+            # For horizontal alignment
+            if alignment in ["top", "bottom"]:
+                if inlet_spec == "left":
+                    start_x -= outside_offset
+                elif inlet_spec == "right":
+                    start_x += outside_offset
+            # For vertical alignment
+            elif alignment in ["left", "right"]:
+                if inlet_spec == "bottom":
+                    start_y -= outside_offset
+                elif inlet_spec == "top":
+                    start_y += outside_offset
+
+        # Update the inlet coordinate
+        main_line_coords[0] = (start_x, start_y)
+
+        # Step 3: Build the main line object
         main_line = IrrigationLine(
             name=f"{bed_name}_MainLine",
             bed_name=bed_name,
@@ -344,8 +368,10 @@ class Layout:
         )
 
         # Step 4: Place fittings
-        # The inlet is always at main_line_coords[0].
+        # The valve is always at main_line_coords[0] (the "inlet" side).
         # The end cap is always at main_line_coords[-1].
+        fittings = []
+
         valve = IrrigationFitting(
             name=f"{bed_name}_MainLine_Valve",
             bed_name=bed_name,
@@ -513,8 +539,9 @@ class Layout:
                 "drip_line_length": 0.0,
                 "fittings_count": {}
             })
-            summary[b]["fittings_count"].setdefault(f.fitting_type, 0)
-            summary[b]["fittings_count"][f.fitting_type] += 1
+            ft = f.fitting_type
+            summary[b]["fittings_count"].setdefault(ft, 0)
+            summary[b]["fittings_count"][ft] += 1
 
         return summary
 
@@ -525,12 +552,18 @@ class Layout:
 
 def draw_layout(layout: Layout, filename: str):
     """
-    Draws the layout (structures + irrigation) and then creates a separate
-    plot with the legend only.
+    Draws the layout (structures + irrigation).
+    Creates the main plot (saved as 'filename'), and a separate legend plot (saved as 'filename_legend.pdf').
+    Figure size can be controlled by 'layout.plot.figure_size' from the YAML.
     """
     # 1) Main Plot (no legend)
     aspect_ratio = layout.plot.new_width / layout.plot.new_length
-    fig, ax = plt.subplots(figsize=(30 / aspect_ratio, 30))
+
+    # The 'figure_size' becomes the height (in inches). Width is scaled by aspect_ratio.
+    fig_height = layout.plot.figure_size
+    fig_width = fig_height / aspect_ratio
+
+    fig, ax = plt.subplots(figsize=(fig_width, fig_height))
 
     # Gridlines
     major_xticks = range(-5, layout.plot.new_length + 1, 5)
@@ -600,6 +633,7 @@ def draw_layout(layout: Layout, filename: str):
                 )
                 ax.add_patch(polygon)
         else:
+            # Polygon structure
             polygon = patches.Polygon(
                 structure.points,
                 closed=True,
@@ -669,16 +703,295 @@ def load_layout_from_yaml(yaml_file: str) -> Layout:
     """
     Loads the layout configuration from a YAML file, including plot info,
     structures, shaped structures, and optional irrigation lines/fittings.
+    
+    Now supports 'figure_size' under 'plot:' to control the figure's height in inches.
     """
     with open(yaml_file, "r") as f:
         data = yaml.safe_load(f)
 
     # Create Plot
     plot_data = data["plot"]
+    figure_size = plot_data.get("figure_size", 11.0)  # default 11
     plot = Plot(
         width=plot_data["width"],
         length=plot_data["length"],
-        extra_space=plot_data["extra_space"]
+        extra_space=plot_data["extra_space"],
+        figure_size=figure_size
+    )
+
+    structures = []
+    # Polygons
+    polygons = data.get("structures", {}).get("polygons", [])
+    for poly in polygons:
+        struct = Structure(
+            name=poly["name"],
+            points=[tuple(pt) for pt in poly["points"]],
+            edgecolor=poly.get("edgecolor", "red"),
+            linewidth=poly.get("linewidth", 1.5),
+            zorder=poly.get("zorder", 1),
+            main_line_alignment=poly.get("main_line_alignment", "optimal"),
+            number_of_drip_lines=poly.get("number_of_drip_lines", 2),
+            main_line_inlet=poly.get("main_line_inlet", None),  # can be (x,y) or "top"/"bottom"/"left"/"right"
+            main_line_end=poly.get("main_line_end", None),
+            needs_irrigation=poly.get("needs_irrigation", False)
+        )
+        structures.append(struct)
+
+    # Shaped structures
+    shaped_list = data.get("structures", {}).get("shaped_structures", [])
+    for shaped in shaped_list:
+        shape = shaped["shape"].lower()
+
+        # Default irrigation fields from top-level of this shaped structure
+        base_main_line_align = shaped.get("main_line_alignment", "optimal")
+        base_num_drips = shaped.get("number_of_drip_lines", 2)
+        base_needs_irr = shaped.get("needs_irrigation", False)
+        base_inlet = shaped.get("main_line_inlet", None)
+        base_end = shaped.get("main_line_end", None)
+
+        # Dimensions
+        if shape in ["rectangle", "square"]:
+            if shape == "rectangle":
+                dims = (shaped["dimensions"]["length"], shaped["dimensions"]["breadth"])
+            else:
+                dims = shaped["dimensions"]["side"]
+        elif shape == "circle":
+            dims = shaped["dimensions"]["radius"]
+        else:
+            raise ValueError(f"Unsupported shape {shape}")
+
+        # positions => multiple beds each with optional overrides
+        base_name = shaped.get("name", "UnnamedShaped")
+        for i, pos in enumerate(shaped["positions"]):
+            bed_name = pos.get("name", f"{base_name}_{i+1}")
+            ml_align = pos.get("main_line_alignment", base_main_line_align)
+            num_drips = pos.get("number_of_drip_lines", base_num_drips)
+            needs_irr = pos.get("needs_irrigation", base_needs_irr)
+            inlet = pos.get("main_line_inlet", base_inlet)  # can be side or coordinate
+            end = pos.get("main_line_end", base_end)
+
+            s_obj = ShapedStructure(
+                name=bed_name,
+                shape=shape,
+                position=(pos["x"], pos["y"]),
+                dimensions=dims,
+                alignment=shaped.get("alignment", "center"),
+                edgecolor=shaped.get("edgecolor", "blue"),
+                linewidth=shaped.get("linewidth", 1.5),
+                zorder=shaped.get("zorder", 1),
+                main_line_alignment=ml_align,
+                number_of_drip_lines=num_drips,
+                main_line_inlet=inlet,
+                main_line_end=end,
+                needs_irrigation=needs_irr
+            )
+            structures.append(s_obj)
+
+    layout = Layout(plot=plot, structures=structures)
+
+    # Optionally parse 'irrigation' from top-level if you want global lines/fittings
+    irrigation_data = data.get("irrigation", {})
+    lines_data = irrigation_data.get("lines", [])
+    for ld in lines_data:
+        coords = [tuple(pt) for pt in ld["coordinates"]]
+        line_obj = IrrigationLine(
+            name=ld["name"],
+            bed_name="(Global)",
+            coordinates=coords,
+            color=ld.get("color", "magenta"),
+            linewidth=ld.get("linewidth", 1.5),
+            zorder=ld.get("zorder", 5)
+        )
+        layout.irrigation_lines.append(line_obj)
+
+    fittings_data = irrigation_data.get("fittings", [])
+    for fd in fittings_data:
+        fit_obj = IrrigationFitting(
+            name=fd["name"],
+            bed_name="(Global)",
+            fitting_type=fd["fitting_type"],
+            position=tuple(fd["position"]),
+            color=fd.get("color", "lime"),
+            marker=fd.get("marker", "o"),
+            size=fd.get("size", 25),
+            zorder=fd.get("zorder", 6)
+        )
+        layout.irrigation_fittings.append(fit_obj)
+
+    return layout
+
+
+###############################################################################
+#                               DRAWING
+###############################################################################
+
+def draw_layout(layout: Layout, filename: str):
+    """
+    Draws the layout (structures + irrigation).
+    Creates the main plot (saved as 'filename'), and a separate legend plot (saved as 'filename_legend.pdf').
+    Figure size can be controlled by 'layout.plot.figure_size' from the YAML.
+    """
+    # 1) Main Plot (no legend)
+    aspect_ratio = layout.plot.new_width / layout.plot.new_length
+
+    # The 'figure_size' becomes the height (in inches). Width is scaled by aspect_ratio.
+    fig_height = layout.plot.figure_size
+    fig_width = fig_height / aspect_ratio
+
+    fig, ax = plt.subplots(figsize=(fig_width, fig_height))
+
+    # Gridlines
+    major_xticks = range(-5, layout.plot.new_length + 1, 5)
+    major_yticks = range(-5, layout.plot.new_width + 1, 5)
+    minor_xticks = range(-5, layout.plot.new_length + 1)
+    minor_yticks = range(-5, layout.plot.new_width + 1)
+
+    ax.set_xticks(major_xticks)
+    ax.set_yticks(major_yticks)
+    ax.set_xticks(minor_xticks, minor=True)
+    ax.set_yticks(minor_yticks, minor=True)
+    ax.grid(which="minor", linestyle=":", linewidth=0.5, color="gray")
+    ax.grid(which="major", linestyle="-", linewidth=0.8, color="black")
+
+    # Limits
+    ax.set_xlim(-5, layout.plot.new_length - 5)
+    ax.set_ylim(-5, layout.plot.new_width - 5)
+    ax.set_xlabel("Length (feet)", fontsize=10)
+    ax.set_ylabel("Width (feet)", fontsize=10)
+    ax.tick_params(axis="x", which="major", labelsize=8, rotation=90)
+    ax.tick_params(axis="y", which="major", labelsize=8)
+    ax.tick_params(axis="both", which="minor", labelsize=6)
+
+    # Plot boundary
+    ax.add_patch(
+        patches.Rectangle(
+            (0, 0),
+            layout.plot.length,
+            layout.plot.width,
+            fill=False,
+            edgecolor="blue",
+            linewidth=1.5,
+            label="Plot Boundary",
+            zorder=0
+        )
+    )
+
+    # Sort structures by zorder
+    sorted_structures = sorted(layout.structures, key=lambda s: s.zorder)
+
+    # Draw structures
+    for structure in sorted_structures:
+        if isinstance(structure, ShapedStructure):
+            if structure.shape.lower() == "circle":
+                x, y = structure.position
+                radius = structure.dimensions
+                circle = patches.Circle(
+                    (x, y),
+                    radius=radius,
+                    edgecolor=structure.edgecolor,
+                    linewidth=structure.linewidth,
+                    fill=False,
+                    label=structure.name,
+                    zorder=structure.zorder
+                )
+                ax.add_patch(circle)
+            else:
+                points = structure.calculate_points()
+                polygon = patches.Polygon(
+                    points,
+                    closed=True,
+                    fill=False,
+                    edgecolor=structure.edgecolor,
+                    linewidth=structure.linewidth,
+                    label=structure.name,
+                    zorder=structure.zorder
+                )
+                ax.add_patch(polygon)
+        else:
+            # Polygon structure
+            polygon = patches.Polygon(
+                structure.points,
+                closed=True,
+                fill=False,
+                edgecolor=structure.edgecolor,
+                linewidth=structure.linewidth,
+                label=structure.name,
+                zorder=structure.zorder
+            )
+            ax.add_patch(polygon)
+
+    # Draw irrigation lines
+    for line in layout.irrigation_lines:
+        xs, ys = zip(*line.coordinates)
+        ax.plot(
+            xs, ys,
+            color=line.color,
+            linewidth=line.linewidth,
+            label=line.name,
+            zorder=line.zorder
+        )
+
+    # Draw fittings
+    for fitting in layout.irrigation_fittings:
+        ax.scatter(
+            fitting.position[0],
+            fitting.position[1],
+            c=fitting.color,
+            marker=fitting.marker,
+            s=fitting.size,
+            label=fitting.name,
+            zorder=fitting.zorder
+        )
+
+    # Save main plot (NO legend displayed)
+    plt.savefig(filename, format="pdf", bbox_inches="tight")
+
+    # 2) Separate figure just for the legend
+    handles, labels = ax.get_legend_handles_labels()
+    unique_dict = dict(zip(labels, handles))
+
+    fig_legend, ax_legend = plt.subplots(figsize=(6, 8))
+    ax_legend.axis('off')
+
+    legend = ax_legend.legend(
+        unique_dict.values(),
+        unique_dict.keys(),
+        loc='center',
+        fontsize=10,
+        frameon=False
+    )
+
+    plt.tight_layout()
+
+    legend_filename = filename.replace(".pdf", "_legend.pdf")
+    plt.savefig(legend_filename, format="pdf", bbox_inches="tight")
+
+    # Optionally show both plots
+    plt.show()
+
+
+###############################################################################
+#                            YAML LOADER
+###############################################################################
+
+def load_layout_from_yaml(yaml_file: str) -> Layout:
+    """
+    Loads the layout configuration from a YAML file, including plot info,
+    structures, shaped structures, and optional irrigation lines/fittings.
+    
+    Now supports 'figure_size' under 'plot:' to control the figure's height in inches.
+    """
+    with open(yaml_file, "r") as f:
+        data = yaml.safe_load(f)
+
+    # Create Plot
+    plot_data = data["plot"]
+    figure_size = plot_data.get("figure_size", 11.0)  # default 11
+    plot = Plot(
+        width=plot_data["width"],
+        length=plot_data["length"],
+        extra_space=plot_data["extra_space"],
+        figure_size=figure_size
     )
 
     structures = []

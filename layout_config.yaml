@@ -2,7 +2,7 @@ plot:
   width: 125
   length: 60
   extra_space: 5
-
+  figure_size: 30  # big figure for better visibility
 structures:
   polygons:
     - name: House
@@ -154,29 +154,29 @@ structures:
         - { x: 45, y: 7.5, name: "Tree 1", number_of_drip_lines: 1 }
       main_line_inlet: right
 
-irrigation:
-  lines:
-    - name: Main Line A
-      coordinates:
-        - [0, 10]
-        - [15, 10]
-        - [15, 20]
-        - [30, 20]
-      color: magenta
-      linewidth: 2.0
+# irrigation:
+#   lines:
+#     - name: Main Line A
+#       coordinates:
+#         - [0, 10]
+#         - [15, 10]
+#         - [15, 20]
+#         - [30, 20]
+#       color: magenta
+#       linewidth: 2.0
 
-  fittings:
-    - name: Elbow near Bed #1
-      fitting_type: elbow
-      position: [15, 10]
-      color: lime
+#   fittings:
+#     - name: Elbow near Bed #1
+#       fitting_type: elbow
+#       position: [15, 10]
+#       color: lime
 
-    - name: 3-Way Split near Bed #2
-      fitting_type: tee
-      position: [30, 20]
-      color: lime
+#     - name: 3-Way Split near Bed #2
+#       fitting_type: tee
+#       position: [30, 20]
+#       color: lime
 
-    - name: End Cap near Bed #1
-      fitting_type: end_cap
-      position: [15, 20]
-      color: lime
+#     - name: End Cap near Bed #1
+#       fitting_type: end_cap
+#       position: [15, 20]
+#       color: lime
