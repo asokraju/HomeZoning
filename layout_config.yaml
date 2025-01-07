@@ -52,7 +52,8 @@ structures:
       zorder: 2
       needs_irrigation: True
       main_line_alignment: "bottom"
-      number_of_drip_lines: 3
+      number_of_drip_lines: 2
+      main_line_inlet: right
 
     - name: Tulip Bed
       points:
@@ -67,7 +68,7 @@ structures:
       needs_irrigation: True
       main_line_alignment: "right"
       number_of_drip_lines: 4
-
+      main_line_inlet: bottom 
     - name: Porch Plants
       points:
         - [37.5, 22]
@@ -79,7 +80,7 @@ structures:
       linewidth: 1.5
       zorder: 2
       needs_irrigation: True
-      number_of_drip_lines: 1
+      number_of_drip_lines: 3
       main_line_alignment: "right"
 
   shaped_structures:
@@ -97,10 +98,10 @@ structures:
       main_line_alignment: "optimal"
       number_of_drip_lines: 2
       positions:
-        - { x: 10, y: 105, name: "Bed A" , main_line_alignment: "right"}
-        - { x: 22, y: 105, name: "Bed B", main_line_alignment: "left" }  # override drip lines
-        - { x: 34, y: 105, name: "Bed C" , main_line_alignment: "right"}
-        - { x: 46, y: 105, name: "Bed D", main_line_alignment: "left" }
+        - { x: 10, y: 105, name: "Bed A", main_line_alignment: "right", main_line_inlet: bottom}
+        - { x: 22, y: 105, name: "Bed B", main_line_alignment: "left" , main_line_inlet: bottom}
+        - { x: 34, y: 105, name: "Bed C", main_line_alignment: "right" , main_line_inlet: bottom}
+        - { x: 46, y: 105, name: "Bed D", main_line_alignment: "left" , main_line_inlet: bottom}
 
     - name: Garden Bed Model 2
       shape: rectangle
@@ -115,14 +116,14 @@ structures:
       main_line_alignment: "optimal"
       number_of_drip_lines: 2
       positions:
-        - { x: 6, y: 112.5, name: "Bed E" , main_line_alignment: "right"}
-        - { x: 12, y: 112.5, name: "Bed F" , main_line_alignment: "left"}
-        - { x: 18, y: 112.5, name: "Bed G", main_line_alignment: "right" }
-        - { x: 24, y: 112.5, name: "Bed H" , main_line_alignment: "left" }
-        - { x: 30, y: 112.5, name: "Bed I" , main_line_alignment: "right"}
-        - { x: 36, y: 112.5, name: "Bed J" , main_line_alignment: "left"}
-        - { x: 42, y: 112.5, name: "Bed K" , main_line_alignment: "right"}
-        - { x: 48, y: 112.5, name: "Bed L", main_line_alignment: "left" }  # disable irrigation
+        - { x: 6, y: 112.5, name: "Bed E", main_line_alignment: "right", main_line_inlet: top }
+        - { x: 12, y: 112.5, name: "Bed F", main_line_alignment: "left" , main_line_inlet: top }
+        - { x: 18, y: 112.5, name: "Bed G", main_line_alignment: "right" , main_line_inlet: top }
+        - { x: 24, y: 112.5, name: "Bed H", main_line_alignment: "left" , main_line_inlet: top }
+        - { x: 30, y: 112.5, name: "Bed I", main_line_alignment: "right" , main_line_inlet: top }
+        - { x: 36, y: 112.5, name: "Bed J", main_line_alignment: "left" , main_line_inlet: top }
+        - { x: 42, y: 112.5, name: "Bed K", main_line_alignment: "right" , main_line_inlet: top }
+        - { x: 48, y: 112.5, name: "Bed L", main_line_alignment: "left", main_line_inlet: top  }  # disable irrigation
 
     - name: Garden Bed Model 3
       shape: rectangle
@@ -137,8 +138,8 @@ structures:
       main_line_alignment: "optimal"
       number_of_drip_lines: 1
       positions:
-        - { x: 39, y: 116.5, name: "Bed M" , main_line_alignment: "left"}
-        - { x: 39, y: 121.5, name: "Bed N", main_line_alignment: "left" }
+        - { x: 39, y: 116.5, name: "Bed M", main_line_alignment: "left", main_line_inlet: bottom  }
+        - { x: 39, y: 121.5, name: "Bed N", main_line_alignment: "left", main_line_inlet: bottom  }
 
     - name: Tree
       shape: circle
@@ -150,7 +151,8 @@ structures:
       zorder: 4
       needs_irrigation: True
       positions:
-        - { x: 45, y: 7.5, name: "Tree 1", number_of_drip_lines: 1}
+        - { x: 45, y: 7.5, name: "Tree 1", number_of_drip_lines: 1 }
+      main_line_inlet: right
 
 irrigation:
   lines:
